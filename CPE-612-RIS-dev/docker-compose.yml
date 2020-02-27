@@ -1,0 +1,95 @@
+version: '3.7'
+
+services:
+  fpm:
+    image: ris/php
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    container_name: app
+    restart: unless-stopped
+    environment:
+      CONTAINER_ROLE: app
+      APP_ENV: local
+    depends_on:
+      - mariadb
+    volumes:
+      - ./:/var/www:Z
+    networks:
+      - app-network
+  
+  queue:
+    image: ris/php
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    container_name: app-queue
+    restart: unless-stopped
+    environment:
+      CONTAINER_ROLE: queue
+      APP_ENV: local
+    depends_on:
+      - mariadb
+    volumes:
+      - ./:/var/www:Z
+    networks:
+      - app-network
+
+  scheduler:
+    image: ris/php
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    container_name: app-scheduler
+    restart: unless-stopped
+    environment:
+      CONTAINER_ROLE: scheduler
+      APP_ENV: local
+    depends_on:
+      - mariadb
+    volumes:
+      - ./:/var/www:Z
+    networks:
+      - app-network
+
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - fpm
+    volumes:
+      - ./:/var/www:Z
+      - ./docker/nginx/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+
+  mariadb:
+    image: mariadb
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-db}
+      MYSQL_USER: ${DB_USERNAME:-db}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-db}
+      MYSQL_RANDOM_ROOT_PASSWORD: 'true'
+    volumes:
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    ports:
+      - 8888:80
+    environment:
+      PMA_HOST: ${DB_HOST:-db}
+    networks:
+      - app-network
+
+networks:
+  app-network:
+

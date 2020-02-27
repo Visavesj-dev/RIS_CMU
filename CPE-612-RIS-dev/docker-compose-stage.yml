@@ -1,0 +1,91 @@
+version: '3.7'
+
+services:
+  fpm:
+    image: ris/php
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    restart: unless-stopped
+    environment:
+      CONTAINER_ROLE: app
+      APP_ENV: staging
+    depends_on:
+      - mariadb
+    volumes:
+      - ./:/var/www:Z
+    networks:
+      - app-network-stage
+  
+  queue:
+    image: ris/php
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    restart: unless-stopped
+    environment:
+      CONTAINER_ROLE: queue
+      APP_ENV: staging
+    depends_on:
+      - mariadb
+      - fpm
+    volumes:
+      - ./:/var/www:Z
+    networks:
+      - app-network-stage
+
+  scheduler:
+    image: ris/php
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    restart: unless-stopped
+    environment:
+      CONTAINER_ROLE: scheduler
+      APP_ENV: staging
+    depends_on:
+      - mariadb
+      - fpm
+    volumes:
+      - ./:/var/www:Z
+    networks:
+      - app-network-stage
+
+  webserver:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www:Z
+      - ./docker/nginx/:/etc/nginx/conf.d/
+    networks:
+      - app-network-stage
+
+  mariadb:
+    image: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-db}
+      MYSQL_USER: ${DB_USERNAME:-db}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-db}
+      MYSQL_RANDOM_ROOT_PASSWORD: 'true'
+    volumes:
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network-stage
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - 8001:80
+    depends_on:
+      - mariadb
+    environment:
+      PMA_HOST: ${DB_HOST:-db}
+    networks:
+      - app-network-stage
+
+networks:
+  app-network-stage:
+
